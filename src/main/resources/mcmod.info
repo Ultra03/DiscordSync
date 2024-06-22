@@ -1,0 +1,16 @@
+[
+    {
+      "modid": "${modId}",
+      "name": "${modName}",
+      "description": "Syncs Minecraft chat with Discord chat.",
+      "version": "${modVersion}",
+      "mcversion": "${minecraftVersion}",
+      "url": "https://github.com/Ultra03/DiscordSync",
+      "updateUrl": "",
+      "authorList": ["Ultra"],
+      "credits": "",
+      "logoFile": "",
+      "screenshots": [],
+      "dependencies": []
+    }
+]
