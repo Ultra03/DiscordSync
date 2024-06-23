@@ -1,6 +1,7 @@
 package com.ultra.discordsync;
 
 import com.ultra.discordsync.listeners.MinecraftListener;
+import cpw.mods.fml.common.FMLCommonHandler;
 import cpw.mods.fml.common.event.*;
 import net.minecraftforge.common.MinecraftForge;
 
@@ -10,11 +11,9 @@ public class CommonProxy {
     // etc, and register them with the GameRegistry."
     public void preInit(FMLPreInitializationEvent event) 	{
         // Config.syncronizeConfiguration(event.getSuggestedConfigurationFile());
-
-        DiscordSync.info(Config.greeting);
-        DiscordSync.info("I am " + Tags.MODNAME + " at version " + Tags.VERSION + " and group name " + Tags.GROUPNAME);
-
-        MinecraftForge.EVENT_BUS.register(new MinecraftListener());
+        MinecraftListener listener = new MinecraftListener();
+        MinecraftForge.EVENT_BUS.register(listener);
+        FMLCommonHandler.instance().bus().register(listener);
     }
 
     // load "Do your mod setup. Build whatever data structures you care about. Register recipes."

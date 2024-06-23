@@ -1,15 +1,16 @@
 package com.ultra.discordsync;
 
+import club.minnced.discord.webhook.WebhookClientBuilder;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.neovisionaries.ws.client.DualStackMode;
 import com.neovisionaries.ws.client.WebSocketFactory;
 import com.ultra.discordsync.listeners.DiscordListener;
 import cpw.mods.fml.common.Mod;
-import cpw.mods.fml.common.ModAPIManager;
 import cpw.mods.fml.common.SidedProxy;
 import cpw.mods.fml.common.event.*;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.entities.Webhook;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import okhttp3.ConnectionPool;
@@ -21,12 +22,14 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.*;
 
 @Mod(modid = Tags.MODID, version = Tags.VERSION, name = Tags.MODNAME, acceptedMinecraftVersions = "[1.7.10]", acceptableRemoteVersions = "*")
 public class DiscordSync {
 
-    private static Logger LOG = LogManager.getLogger(Tags.MODID);
+    public static Logger LOG = LogManager.getLogger(Tags.MODID);
     private static final Collection<GatewayIntent> INTENTS = Arrays.asList(GatewayIntent.GUILD_MESSAGES, GatewayIntent.MESSAGE_CONTENT, GatewayIntent.GUILD_WEBHOOKS);
 
     @SidedProxy(clientSide= Tags.GROUPNAME + ".ClientProxy", serverSide=Tags.GROUPNAME + ".CommonProxy")
@@ -35,6 +38,8 @@ public class DiscordSync {
     private static DiscordSync instance = null;
 
     private JDA jda = null;
+    private Webhook webhook;
+    private WebhookClientBuilder webhookBuilder;
 
     public DiscordSync() {
         // this is terrible but needed
@@ -95,23 +100,9 @@ public class DiscordSync {
         proxy.serverStopped(event);
     }
 
-    public static void debug(String message) {
-        LOG.debug(message);
-    }
-
-    public static void info(String message) {
-        LOG.info(message);
-    }
-
-    public static void warn(String message) {
-        LOG.warn(message);
-    }
-
-    public static void error(String message) {
-        LOG.error(message);
-    }
-
     private void discordInit() {
+        if (jda != null) return;
+
         try {
             if (Config.botToken.isEmpty()) {
                 LOG.error("Invalid bot token, disabling Discord integration");
@@ -172,6 +163,8 @@ public class DiscordSync {
                 jda.shutdownNow();
                 jda = null;
             } else {
+                if (Config.useWebhook)
+                    initWebhook();
                 channel.sendMessage("**Server started**").complete();
             }
         } catch (InterruptedException e) {
@@ -179,11 +172,47 @@ public class DiscordSync {
         }
     }
 
+    private void initWebhook() {
+        if (jda == null || webhook != null) return;
+
+        TextChannel channel = jda.getTextChannelById(Config.mcChannelId);
+        if (channel == null) return;
+
+        List<Webhook> webhooks = channel.retrieveWebhooks().complete();
+        Webhook theHook = null;
+        for (Webhook hook : webhooks) {
+            if (hook.getName().equals("MinecraftHook")) {
+                theHook = hook;
+            }
+        }
+
+        if (theHook == null)
+            theHook = channel.createWebhook("MinecraftHook").complete();
+
+        webhookBuilder = new WebhookClientBuilder(theHook.getUrl());
+        webhookBuilder.setThreadFactory((job) -> {
+            Thread thread = new Thread(job);
+            thread.setName("Webhook");
+            thread.setDaemon(true);
+            return thread;
+        });
+        webhookBuilder.setWait(false);
+    }
+
     public JDA getJda() {
         return jda;
     }
 
+    public WebhookClientBuilder getWebhookBuilder() {
+        return webhookBuilder;
+    }
+
     public static DiscordSync getInstance() {
         return instance;
+    }
+
+    public static String getAvatarUrl(UUID uuid) {
+        String uuidStr = uuid.toString().replace("-", "");
+        return String.format("https://api.mineatar.io/face/%s?scale=16", uuidStr);
     }
 }
